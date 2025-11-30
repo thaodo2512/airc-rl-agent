@@ -303,7 +303,7 @@ run_train() {
     -v "$CONFIG_PATH":/workspace/airc-rl-agent/config.yml:ro \
     -v "$VAE_PATH":/workspace/airc-rl-agent/vae.torch:ro \
     -v "$LOG_DIR":/workspace/airc-rl-agent/model_log \
-    "$IMAGE" train -robot "$ROBOT" -vae vae.torch -config config.yml -device "$DEVICE"
+    "$IMAGE" train -robot "$ROBOT" -vae vae.torch -config config.yml -device "$DEVICE" -steps "$STEPS"
 }
 
 run_demo() {
