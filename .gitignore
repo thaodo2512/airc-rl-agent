@@ -1,0 +1,9 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Training outputs
+model_log/
+
+# Environment / misc
+.DS_Store

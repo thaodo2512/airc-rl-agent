@@ -39,7 +39,25 @@ RUN rm -rf vae.torch && \
     wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate "https://docs.google.com/uc?export=download&id=$FILE_ID" -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p' > /tmp/confirm && \
     CONFIRM=$(cat /tmp/confirm) && \
     wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$CONFIRM&id=$FILE_ID" -O vae.torch && \
-    rm -rf /tmp/cookies.txt /tmp/confirm
+    rm -rf /tmp/cookies.txt /tmp/confirm && \
+    python - "$PWD/vae.torch" <<'PY'
+import sys, torch
+path = sys.argv[1]
+sd = torch.load(path, map_location='cpu')
+needs = any(k.startswith('decoder.7') for k in sd) and not all(k in sd for k in ('out1.0.weight','out1.0.bias','out2.0.weight','out2.0.bias'))
+if needs:
+    w = sd.get('decoder.7.weight')
+    b = sd.get('decoder.7.bias')
+    if w is not None and b is not None:
+        state = sd
+        state['out1.0.weight'] = state['decoder.7.weight']
+        state['out1.0.bias'] = state['decoder.7.bias']
+        state['out2.0.weight'] = state.pop('decoder.7.weight')
+        state['out2.0.bias'] = state.pop('decoder.7.bias')
+        torch.save(state, path)
+    else:
+        torch.save(sd, path)
+PY
 
 ENTRYPOINT ["racer"]
 CMD ["--help"]

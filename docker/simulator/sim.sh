@@ -12,10 +12,11 @@ DEFAULT_LOG_DIR="$REPO_ROOT/model_log"
 DEFAULT_MODEL="$REPO_ROOT/model"
 DEFAULT_DEVICE="cuda"
 DEFAULT_STEPS="5000"
+DEFAULT_ROBOT="sim"
 DEFAULT_SIM_VERSION="v21.07.24"
-DEFAULT_SIM_CACHE="$REPO_ROOT/.sim"
-DEFAULT_SIM_URL_BASE="https://github.com/tawnkramer/gym-donkeycar/releases/download"
+DEFAULT_SIM_IMAGE="learning-racer-donkey-sim"
 DEFAULT_SIM_PORT="9091"
+DEFAULT_SIM_NAME="learning-racer-sim-env"
 BASE_IMAGE="pytorch/pytorch:1.4-cuda10.1-cudnn7-runtime"  # Hardcoded GPU base
 PLATFORM="linux/amd64"  # Hardcoded for amd64 arch
 
@@ -28,7 +29,8 @@ Commands:
   train     Run training against DonkeySim.
   demo      Run a demo rollout.
   shell     Start an interactive shell.
-  sim       Download and launch DonkeySim locally (Linux default).
+  sim       Build and launch DonkeySim inside Docker (headless by default).
+  run-all   Start DonkeySim (Docker) and run train/demo against it.
 
 Options:
   --image TAG      Image name/tag (default: learning-racer-sim)
@@ -38,13 +40,14 @@ Options:
   --model FILE     Policy model for demo (default: <repo>/model)
   --device DEV     Torch device (cpu|cuda, default: cuda)
   --steps N        Demo steps (default: 5000)
+  --robot NAME     Robot driver for racer (default: sim)
   --sim-version V  DonkeySim release tag (default: v21.07.24)
-  --sim-cache DIR  Where to cache DonkeySim downloads (default: <repo>/.sim)
-  --sim-url URL    Override download URL for DonkeySim zip
-  --sim-binary BIN Use an existing DonkeySim binary (skip download)
+  --sim-image IMG  DonkeySim Docker image (default: learning-racer-donkey-sim:<version>)
   --sim-port PORT  Port DonkeySim listens on (default: 9091)
-  --headless       Force headless DonkeySim launch (default)
+  --headless       Headless DonkeySim launch (default)
   --no-headless    Launch DonkeySim with a GUI (if available)
+  --sim-name NAME  Container name for the sim (default: learning-racer-sim-env)
+  --mode MODE      Mode for run-all: train|demo (default: train)
   -h, --help       Show this help.
 
 Examples:
@@ -53,7 +56,9 @@ Examples:
   sim.sh demo --model ~/model --vae ~/vae.torch
   sim.sh shell
   sim.sh sim
-  sim.sh sim --sim-binary /opt/DonkeySim/DonkeySim.x86_64
+  sim.sh sim --sim-image my/sim:latest
+  sim.sh run-all --vae ~/vae.torch --log-dir ./model_log
+  sim.sh run-all --mode demo --model ~/model --vae ~/vae.torch --steps 2000
 EOF
 }
 
@@ -64,12 +69,13 @@ LOG_DIR="$DEFAULT_LOG_DIR"
 MODEL_PATH="$DEFAULT_MODEL"
 DEVICE="$DEFAULT_DEVICE"
 STEPS="$DEFAULT_STEPS"
+ROBOT="$DEFAULT_ROBOT"
 SIM_VERSION="$DEFAULT_SIM_VERSION"
-SIM_CACHE="$DEFAULT_SIM_CACHE"
-SIM_URL=""
-SIM_BINARY_PATH=""
+SIM_IMAGE=""
 SIM_HEADLESS=1
 SIM_PORT="$DEFAULT_SIM_PORT"
+SIM_NAME="$DEFAULT_SIM_NAME"
+SIM_MODE="train"
 COMMAND=""
 
 require_file() {
@@ -92,115 +98,91 @@ require_dir() {
   fi
 }
 
-find_python() {
-  if command -v python3 >/dev/null 2>&1; then
-    echo "python3"
-  elif command -v python >/dev/null 2>&1; then
-    echo "python"
-  else
-    echo ""
-  fi
-}
-
-download_file() {
-  local url=$1
-  local dest=$2
-  if command -v curl >/dev/null 2>&1; then
-    curl -L "$url" -o "$dest"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -O "$dest" "$url"
-  else
-    echo "Need curl or wget to download $url" >&2
-    exit 1
-  fi
-}
-
-extract_zip() {
-  local archive=$1
-  local target=$2
-  local py_bin
-  py_bin=$(find_python)
-  if [[ -z "$py_bin" ]]; then
-    echo "Python is required to extract $archive" >&2
-    exit 1
-  fi
-  "$py_bin" - "$archive" "$target" <<'PY'
-import sys
-import zipfile
-archive, target = sys.argv[1:]
-with zipfile.ZipFile(archive) as zf:
-    zf.extractall(target)
-PY
-}
-
-ensure_sim_binary() {
-  local os archive sim_dir sim_bin=""
-  os=$(uname -s)
-  case "$os" in
-    Linux*) archive="DonkeySimLinux.zip"; sim_dir="DonkeySimLinux" ;;
-    Darwin*) archive="DonkeySimMac.zip"; sim_dir="DonkeySimMac.app" ;;
-    *)
-      echo "Unsupported platform for DonkeySim auto-launch: $os" >&2
-      exit 1
-      ;;
-  esac
-
-  local version="$SIM_VERSION"
-  local base_dir="$SIM_CACHE/$version"
-  require_dir "$base_dir" "sim cache directory"
-
-  if [[ -n "$SIM_BINARY_PATH" && -f "$SIM_BINARY_PATH" ]]; then
-    SIM_BIN="$SIM_BINARY_PATH"
+ensure_sim_image() {
+  local image_ref=$1
+  if docker image inspect "$image_ref" >/dev/null 2>&1; then
     return
   fi
+  echo "Building DonkeySim Docker image ($image_ref) with version $SIM_VERSION..."
+  docker build -t "$image_ref" \
+    -f "$SCRIPT_DIR/DonkeySim.Dockerfile" \
+    --build-arg DONKEYSIM_VERSION="$SIM_VERSION" \
+    --platform "$PLATFORM" \
+    "$SCRIPT_DIR"
+}
 
-  local download_url="${SIM_URL:-$DEFAULT_SIM_URL_BASE/$version/$archive}"
-  local download_path="$SIM_CACHE/${version}-${archive}"
+start_sim_container() {
+  local image_ref="$1"
+  local cid
+  ensure_sim_image "$image_ref"
+  # Remove any stale container with the same name
+  docker rm -f "$SIM_NAME" >/dev/null 2>&1 || true
+  cid=$(docker run -d --rm \
+    --name "$SIM_NAME" \
+    --network host \
+    --platform "$PLATFORM" \
+    -e "DONKEYSIM_PORT=$SIM_PORT" \
+    -e "DONKEYSIM_HEADLESS=$SIM_HEADLESS" \
+    "$image_ref")
+  echo "$cid"
+}
 
-  if [[ ! -f "$download_path" ]]; then
-    echo "Downloading DonkeySim ($download_url)..."
-    download_file "$download_url" "$download_path"
-  fi
+stop_sim_container() {
+  docker rm -f "$SIM_NAME" >/dev/null 2>&1 || true
+}
 
-  if [[ ! -d "$base_dir/$sim_dir" ]]; then
-    echo "Extracting DonkeySim to $base_dir"
-    extract_zip "$download_path" "$base_dir"
-  fi
-
-  local candidates=(
-    "$base_dir/$sim_dir/DonkeySim.x86_64"
-    "$base_dir/$sim_dir/donkey_sim.x86_64"
-    "$base_dir/$sim_dir/DonkeySim"
-  )
-  for cand in "${candidates[@]}"; do
-    if [[ -f "$cand" ]]; then
-      sim_bin="$cand"
-      break
+wait_for_sim() {
+  local retries=30
+  local delay=1
+  echo "Waiting for DonkeySim to accept connections on port $SIM_PORT ..."
+  for ((i=1; i<=retries; i++)); do
+    if (echo > "/dev/tcp/127.0.0.1/$SIM_PORT") >/dev/null 2>&1; then
+      echo "DonkeySim is up."
+      return 0
     fi
+    sleep "$delay"
   done
-
-  if [[ -z "$sim_bin" ]]; then
-    echo "Could not locate DonkeySim binary after extraction. Checked: ${candidates[*]}" >&2
-    exit 1
-  fi
-
-  chmod +x "$sim_bin"
-  SIM_BIN="$sim_bin"
+  echo "Timed out waiting for DonkeySim on port $SIM_PORT" >&2
+  return 1
 }
 
 run_sim() {
-  ensure_sim_binary
-  echo "Starting DonkeySim from $SIM_BIN on port $SIM_PORT (headless=$SIM_HEADLESS)"
-  local args=("$SIM_BIN" "--port" "$SIM_PORT")
-  if (( SIM_HEADLESS )); then
-    args+=("-batchmode" "-nographics")
+  local image_ref="$SIM_IMAGE"
+  if [[ -z "$image_ref" ]]; then
+    image_ref="$DEFAULT_SIM_IMAGE:$SIM_VERSION"
   fi
-  exec "${args[@]}"
+  ensure_sim_image "$image_ref"
+  echo "Starting DonkeySim in Docker ($image_ref) on port $SIM_PORT (headless=$SIM_HEADLESS)"
+  local run_cmd=(
+    docker run --rm -it
+    --network host
+    --platform "$PLATFORM"
+    --gpus all
+    -e "DONKEYSIM_PORT=$SIM_PORT"
+    -e "DONKEYSIM_HEADLESS=$SIM_HEADLESS"
+  )
+
+  if [[ "$SIM_HEADLESS" -eq 0 ]]; then
+    # Mount host display for GUI mode
+    run_cmd+=(
+      -e "DISPLAY=${DISPLAY:-:0}"
+      -v /tmp/.X11-unix:/tmp/.X11-unix
+    )
+    if [[ -n "${XAUTHORITY:-}" && -f "$XAUTHORITY" ]]; then
+      run_cmd+=(-v "$XAUTHORITY":/root/.Xauthority:ro)
+    fi
+    if [[ -e /dev/dri ]]; then
+      run_cmd+=(--device /dev/dri)
+    fi
+  fi
+
+  run_cmd+=("$image_ref")
+  exec "${run_cmd[@]}"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    build|train|demo|shell|sim)
+    build|train|demo|shell|sim|run-all)
       COMMAND="$1"
       shift
       ;;
@@ -232,24 +214,28 @@ while [[ $# -gt 0 ]]; do
       STEPS="$2"
       shift 2
       ;;
+    --robot)
+      ROBOT="$2"
+      shift 2
+      ;;
     --sim-version)
       SIM_VERSION="$2"
       shift 2
       ;;
-    --sim-cache)
-      SIM_CACHE="$2"
-      shift 2
-      ;;
-    --sim-url)
-      SIM_URL="$2"
-      shift 2
-      ;;
-    --sim-binary)
-      SIM_BINARY_PATH="$2"
+    --sim-image)
+      SIM_IMAGE="$2"
       shift 2
       ;;
     --sim-port)
       SIM_PORT="$2"
+      shift 2
+      ;;
+    --sim-name)
+      SIM_NAME="$2"
+      shift 2
+      ;;
+    --mode)
+      SIM_MODE="$2"
       shift 2
       ;;
     --headless)
@@ -279,29 +265,53 @@ fi
 
 DOCKER_RUN=(docker run --rm -it --network host --gpus all --platform "$PLATFORM")
 
+run_train() {
+  require_file "$CONFIG_PATH" "config file"
+  require_file "$VAE_PATH" "VAE model"
+  require_dir "$LOG_DIR" "log directory"
+  "${DOCKER_RUN[@]}" \
+    -v "$CONFIG_PATH":/workspace/airc-rl-agent/config.yml:ro \
+    -v "$VAE_PATH":/workspace/airc-rl-agent/vae.torch:ro \
+    -v "$LOG_DIR":/workspace/airc-rl-agent/model_log \
+    "$IMAGE" train -robot "$ROBOT" -vae vae.torch -config config.yml -device "$DEVICE"
+}
+
+run_demo() {
+  require_file "$CONFIG_PATH" "config file"
+  require_file "$VAE_PATH" "VAE model"
+  require_file "$MODEL_PATH" "policy model"
+  "${DOCKER_RUN[@]}" \
+    -v "$CONFIG_PATH":/workspace/airc-rl-agent/config.yml:ro \
+    -v "$VAE_PATH":/workspace/airc-rl-agent/vae.torch:ro \
+    -v "$MODEL_PATH":/workspace/airc-rl-agent/model:ro \
+    "$IMAGE" demo -robot "$ROBOT" -model model -vae vae.torch -config config.yml -device "$DEVICE" -steps "$STEPS"
+}
+
+run_all() {
+  local image_ref="$SIM_IMAGE"
+  if [[ -z "$image_ref" ]]; then
+    image_ref="$DEFAULT_SIM_IMAGE:$SIM_VERSION"
+  fi
+  local cid
+  cid=$(start_sim_container "$image_ref")
+  trap stop_sim_container EXIT
+  wait_for_sim || { stop_sim_container; exit 1; }
+  if [[ "$SIM_MODE" == "demo" ]]; then
+    run_demo
+  else
+    run_train
+  fi
+}
+
 case "$COMMAND" in
   build)
     docker build -t "$IMAGE" -f "$SCRIPT_DIR/Dockerfile" --build-arg BASE_IMAGE="$BASE_IMAGE" --platform "$PLATFORM" "$REPO_ROOT"
     ;;
   train)
-    require_file "$CONFIG_PATH" "config file"
-    require_file "$VAE_PATH" "VAE model"
-    require_dir "$LOG_DIR" "log directory"
-    "${DOCKER_RUN[@]}" \
-      -v "$CONFIG_PATH":/workspace/airc-rl-agent/config.yml:ro \
-      -v "$VAE_PATH":/workspace/airc-rl-agent/vae.torch:ro \
-      -v "$LOG_DIR":/workspace/airc-rl-agent/model_log \
-      "$IMAGE" train -robot sim -vae vae.torch -config config.yml -device "$DEVICE"
+    run_train
     ;;
   demo)
-    require_file "$CONFIG_PATH" "config file"
-    require_file "$VAE_PATH" "VAE model"
-    require_file "$MODEL_PATH" "policy model"
-    "${DOCKER_RUN[@]}" \
-      -v "$CONFIG_PATH":/workspace/airc-rl-agent/config.yml:ro \
-      -v "$VAE_PATH":/workspace/airc-rl-agent/vae.torch:ro \
-      -v "$MODEL_PATH":/workspace/airc-rl-agent/model:ro \
-      "$IMAGE" demo -robot sim -model model -vae vae.torch -config config.yml -device "$DEVICE" -steps "$STEPS"
+    run_demo
     ;;
   shell)
     require_dir "$LOG_DIR" "log directory"
@@ -313,5 +323,8 @@ case "$COMMAND" in
     ;;
   sim)
     run_sim
+    ;;
+  run-all)
+    run_all
     ;;
 esac
