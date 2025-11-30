@@ -17,6 +17,8 @@ DEFAULT_SIM_VERSION="v21.07.24"
 DEFAULT_SIM_IMAGE="learning-racer-donkey-sim"
 DEFAULT_SIM_PORT="9091"
 DEFAULT_SIM_NAME="learning-racer-sim-env"
+DEFAULT_DISPLAY="${DISPLAY:-:0}"
+DEFAULT_XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 BASE_IMAGE="pytorch/pytorch:1.4-cuda10.1-cudnn7-runtime"  # Hardcoded GPU base
 PLATFORM="linux/amd64"  # Hardcoded for amd64 arch
 
@@ -48,6 +50,8 @@ Options:
   --no-headless    Launch DonkeySim with a GUI (if available)
   --sim-name NAME  Container name for the sim (default: learning-racer-sim-env)
   --mode MODE      Mode for run-all: train|demo (default: train)
+  --display DISP   Override DISPLAY for GUI launch (default: host DISPLAY)
+  --xauth PATH     Override XAUTHORITY path for GUI launch (default: host XAUTHORITY or ~/.Xauthority)
   -h, --help       Show this help.
 
 Examples:
@@ -76,6 +80,8 @@ SIM_HEADLESS=1
 SIM_PORT="$DEFAULT_SIM_PORT"
 SIM_NAME="$DEFAULT_SIM_NAME"
 SIM_MODE="train"
+SIM_DISPLAY="$DEFAULT_DISPLAY"
+SIM_XAUTH="$DEFAULT_XAUTHORITY"
 COMMAND=""
 
 require_file() {
@@ -165,11 +171,11 @@ run_sim() {
   if [[ "$SIM_HEADLESS" -eq 0 ]]; then
     # Mount host display for GUI mode
     run_cmd+=(
-      -e "DISPLAY=${DISPLAY:-:0}"
+      -e "DISPLAY=${SIM_DISPLAY}"
       -v /tmp/.X11-unix:/tmp/.X11-unix
     )
-    if [[ -n "${XAUTHORITY:-}" && -f "$XAUTHORITY" ]]; then
-      run_cmd+=(-v "$XAUTHORITY":/root/.Xauthority:ro)
+    if [[ -n "${SIM_XAUTH:-}" && -f "$SIM_XAUTH" ]]; then
+      run_cmd+=(-v "$SIM_XAUTH":/root/.Xauthority:ro)
     fi
     if [[ -e /dev/dri ]]; then
       run_cmd+=(--device /dev/dri)
@@ -236,6 +242,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --mode)
       SIM_MODE="$2"
+      shift 2
+      ;;
+    --display)
+      SIM_DISPLAY="$2"
+      shift 2
+      ;;
+    --xauth)
+      SIM_XAUTH="$2"
       shift 2
       ;;
     --headless)
