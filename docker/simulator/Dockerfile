@@ -27,13 +27,15 @@ COPY . /workspace/airc-rl-agent
 
 # Install dependencies manually to resolve conflicts, then install package without deps
 # Pin NumPy to 1.x to avoid ABI issues with compiled deps that are not yet NumPy 2 compatible.
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install "numpy<2" \
-    && pip install Cython \
-    && pip install gym==0.17.3 stable_baselines3==1.1.0 scipy cloudpickle pyglet pillow pandas matplotlib h5py tensorboard \
-    && pip install opencv-python \
-    && pip install "gym-donkeycar @ git+https://github.com/tawnkramer/gym-donkeycar.git@v21.07.24#egg=gym-donkeycar" \
-    && pip install --no-deps .
+RUN set -eux; \
+    pip install --upgrade pip setuptools wheel; \
+    pip uninstall -y numpy || true; \
+    pip install --no-cache-dir --force-reinstall "numpy<2"; \
+    pip install Cython; \
+    pip install gym==0.17.3 stable_baselines3==1.1.0 scipy cloudpickle pyglet pillow pandas matplotlib h5py tensorboard; \
+    pip install opencv-python; \
+    pip install "gym-donkeycar @ git+https://github.com/tawnkramer/gym-donkeycar.git@v21.07.24#egg=gym-donkeycar"; \
+    pip install --no-deps .
 
 # Download pre-trained VAE model with confirmation handling (for Google Drive files)
 RUN rm -rf vae.torch && \
