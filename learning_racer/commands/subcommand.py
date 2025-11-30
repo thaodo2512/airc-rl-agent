@@ -18,6 +18,20 @@ import gym_donkeycar
 logger = get_logger(__name__)
 
 
+def _log_run_context(mode: str, args, config):
+    # Strip the handler to avoid logging non-serializable objects
+    args_dict = {k: v for k, v in vars(args).items() if k != 'handler'}
+    logger.info("%s args: %s", mode, args_dict)
+    env_key = args_dict.get('robot_driver')
+    env_conf_all = config.env_conf or {}
+    selected_env_conf = env_conf_all.get(env_key, {})
+    wrapped_env = selected_env_conf.get('wrapped_env')
+    parts = selected_env_conf.get('parts')
+    conf = selected_env_conf.get('conf')
+    logger.info("%s env config: robot=%s wrapped_env=%s conf=%s parts=%s", mode, env_key, wrapped_env, conf, parts)
+    logger.info("%s loaded config (from %s):\n%s", mode, getattr(config, 'config_path', 'config.yml'), config.pretty_dump())
+
+
 @teardown_exception_wrapper(logger)
 def load_vae(model_path, variants_size, image_channels, device):
     vae = VAE(image_channels=image_channels, z_dim=variants_size)
@@ -79,6 +93,7 @@ def load_wrapped_env(env_name, parts, env, vae, config, train=True):
 
 def command_train(args, config):
     logger.info("Start training")
+    _log_run_context("train", args, config)
     torch_device = args.device
     vae = load_vae(args.vae_path, config.sac_variants_size(), config.sac_image_channel(), torch_device)
     env = load_pure_env(config.get_env_conf_robot_name(args.robot_driver),
@@ -93,6 +108,7 @@ def command_train(args, config):
 
 def command_demo(args, config):
     logger.info("Start demo")
+    _log_run_context("demo", args, config)
     torch_device = args.device
     vae = load_vae(args.vae_path, config.sac_variants_size(), config.sac_image_channel(), torch_device)
     env = load_pure_env(config.get_env_conf_robot_name(args.robot_driver),

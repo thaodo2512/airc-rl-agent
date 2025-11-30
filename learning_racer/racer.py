@@ -66,6 +66,7 @@ def racer_func():
     except FileNotFoundError as e:
         logger.error("Config file not found. {}".format(args.config_path))
     logger.info('Start learning racer :{}'.format(__version__))
+    logger.info('Using config file: %s', getattr(config, 'config_path', args.config_path))
     if hasattr(args, 'handler'):
         args.handler(args, config)
     else:

@@ -1,4 +1,4 @@
-from yaml import load
+from yaml import load, safe_dump
 
 from learning_racer.utils.logger import get_logger, teardown_exception_wrapper
 
@@ -25,9 +25,11 @@ class ConfigReader:
         self.agent = None
         self.config = None
         self.env_conf = None
+        self.config_path = None
 
     @teardown_exception_wrapper(logger)
     def load(self, file_path='config.yml'):
+        self.config_path = file_path
         with open(file_path, 'r') as f:
             self.config = load(f, Loader=Loader)
         self.sac = self.config.get('SAC_SETTING')
@@ -158,6 +160,14 @@ class ConfigReader:
 
     def vae_auto_stop(self):
         return self.auto_stop.get('VAE_AUTO_STOP', False)
+
+    def as_dict(self):
+        return self.config or {}
+
+    def pretty_dump(self):
+        if not self.config:
+            return "<no config loaded>"
+        return safe_dump(self.config, sort_keys=False, default_flow_style=False).rstrip()
 
 ConfigReader()
 
