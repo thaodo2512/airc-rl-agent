@@ -33,8 +33,13 @@ RUN pip install --upgrade pip setuptools wheel \
     && pip install "gym-donkeycar @ git+https://github.com/tawnkramer/gym-donkeycar.git@v21.07.24#egg=gym-donkeycar" \
     && pip install --no-deps .
 
-# Download pre-trained VAE model (adjust URL if needed; this is from repo references)
-RUN wget "https://drive.google.com/uc?export=download&id=19r1yuwiRGGV-BjzjoCzwX8zmA8ZKFNcC" -O vae.torch
+# Download pre-trained VAE model with confirmation handling (for Google Drive files)
+RUN rm -rf vae.torch && \
+    FILE_ID=19r1yuwiRGGV-BjzjoCzwX8zmA8ZKFNcC && \
+    wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate "https://docs.google.com/uc?export=download&id=$FILE_ID" -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p' > /tmp/confirm && \
+    CONFIRM=$(cat /tmp/confirm) && \
+    wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$CONFIRM&id=$FILE_ID" -O vae.torch && \
+    rm -rf /tmp/cookies.txt /tmp/confirm
 
 ENTRYPOINT ["racer"]
 CMD ["--help"]
