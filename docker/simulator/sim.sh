@@ -19,9 +19,8 @@ DEFAULT_SIM_PORT="9091"
 DEFAULT_SIM_NAME="learning-racer-sim-env"
 DEFAULT_DISPLAY="${DISPLAY:-:0}"
 DEFAULT_XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-DEFAULT_BASE_IMAGE="pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime"  # CUDA 12.x supports NVIDIA L4
 DEFAULT_PLATFORM="linux/amd64"
-BASE_IMAGE="$DEFAULT_BASE_IMAGE"
+BASE_IMAGE=""  # No default; use Dockerfile's ARG if not set
 PLATFORM="$DEFAULT_PLATFORM"
 
 usage() {
@@ -48,7 +47,7 @@ Options:
   --sim-version V  DonkeySim release tag (default: v21.07.24)
   --sim-image IMG  DonkeySim Docker image (default: learning-racer-donkey-sim:<version>)
   --sim-port PORT  Port DonkeySim listens on (default: 9091)
-  --base-image IMG Base image for trainer build (default: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime)
+  --base-image IMG Base image for trainer build (overrides Dockerfile default)
   --platform P     Docker platform/arch (default: linux/amd64)
   --headless       Headless DonkeySim launch (default)
   --no-headless    Launch DonkeySim with a GUI (if available)
@@ -336,7 +335,11 @@ run_all() {
 
 case "$COMMAND" in
   build)
-    docker build -t "$IMAGE" -f "$SCRIPT_DIR/Dockerfile" --build-arg BASE_IMAGE="$BASE_IMAGE" --platform "$PLATFORM" "$REPO_ROOT"
+    build_args=("-t" "$IMAGE" "-f" "$SCRIPT_DIR/Dockerfile" "--platform" "$PLATFORM" "$REPO_ROOT")
+    if [[ -n "$BASE_IMAGE" ]]; then
+      build_args+=("--build-arg" "BASE_IMAGE=$BASE_IMAGE")
+    fi
+    docker build "${build_args[@]}"
     ;;
   train)
     run_train
