@@ -124,6 +124,39 @@ $ sudo pip3 install .\[choose platform\]
     * osx
     * ubuntu
 
+### 3.3 Simulator Docker image
+
+Use the Docker image when you only need the DonkeySim workflow on a desktop or cloud host.
+
+```shell
+$ docker build -t learning-racer-sim -f docker/simulator/Dockerfile .
+# GPU build (swap the base image)
+$ docker build -t learning-racer-sim -f docker/simulator/Dockerfile --build-arg BASE_IMAGE=pytorch/pytorch:1.8.1-cuda11.1-cudnn8-runtime .
+```
+
+Run training against a DonkeySim instance listening on the host (default 9091):
+
+```shell
+$ docker run --rm -it --network host \
+    -v $PWD/config.yml:/workspace/airc-rl-agent/config.yml:ro \
+    -v $PWD/vae.torch:/workspace/airc-rl-agent/vae.torch:ro \
+    -v $PWD/model_log:/workspace/airc-rl-agent/model_log \
+    learning-racer-sim train -robot sim -device cpu
+```
+
+* Add `--gpus all` when using a CUDA base image.
+* Update `ENV_CONFIG.sim.conf.host` (and `port` when needed) in your mounted `config.yml` if DonkeySim is not on localhost.
+
+Helper script (wraps the above):
+
+```shell
+$ docker/simulator/sim.sh build
+$ docker/simulator/sim.sh train --vae /path/to/vae.torch --log-dir ./model_log
+$ docker/simulator/sim.sh demo --model /path/to/model --vae /path/to/vae.torch --steps 2000
+# Force x86_64 pull if you're on an arm host building for desktop:
+$ docker/simulator/sim.sh build --platform linux/amd64
+```
+
 
 When complete install please check run command.
 
