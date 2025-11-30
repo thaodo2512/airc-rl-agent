@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import os
 import numpy as np
 import torch
 from gym import Env
@@ -8,6 +9,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from learning_racer.agent.utils import pre_process_image
 from learning_racer.config import ConfigReader
 from learning_racer.vae import VAE
+from learning_racer.utils.logger import get_logger
 
 
 class BaseWrappedEnv(Env):
@@ -140,9 +142,13 @@ class BaseWrappedEnv(Env):
 
 class StableBaselineCallback(BaseCallback):
 
-    def __init__(self, wrapped_env: BaseWrappedEnv):
+    def __init__(self, wrapped_env: BaseWrappedEnv, progress_interval: int = None):
         super(StableBaselineCallback, self).__init__()
         self.wrapped_env = wrapped_env
+        # Log progress every N timesteps; default 500 (overridable via env var)
+        default_interval = int(os.getenv("LR_PROGRESS_INTERVAL", "500"))
+        self.progress_interval = progress_interval or default_interval
+        self.logger = get_logger(__name__)
 
     def on_rollout_start(self) -> None:
         self.wrapped_env.on_rollout_start()
@@ -151,4 +157,14 @@ class StableBaselineCallback(BaseCallback):
         self.wrapped_env.on_training_end()
 
     def _on_step(self) -> bool:
+        if self.progress_interval > 0 and self.num_timesteps % self.progress_interval == 0:
+            infos = self.locals.get("infos", [])
+            speeds = [info.get("speed") for info in infos if info and "speed" in info]
+            ctes = [info.get("cte") for info in infos if info and "cte" in info]
+            msg = f"Progress: timesteps={self.num_timesteps}"
+            if speeds:
+                msg += f", speed={np.mean(speeds):.2f}"
+            if ctes:
+                msg += f", cte={np.mean(ctes):.2f}"
+            self.logger.info(msg)
         return True

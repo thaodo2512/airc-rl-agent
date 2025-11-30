@@ -162,6 +162,8 @@ $ docker/simulator/sim.sh run-all --mode demo --model ./model --vae ./vae.torch 
 # Override robot driver if needed: add --robot sim|jetbot|jetracer to train/demo/run-all
 $ docker/simulator/sim.sh train --vae /path/to/vae.torch --log-dir ./model_log    # training only (no sim auto-start)
 $ docker/simulator/sim.sh train-only --vae /path/to/vae.torch --log-dir ./model_log  # alias of train
+# GUI via X11 forwarding (ensure DISPLAY/XAUTHORITY are set and xhost permits access):
+$ docker/simulator/sim.sh sim --no-headless --display "$DISPLAY" --xauth "$XAUTHORITY"
 ```
 
 
