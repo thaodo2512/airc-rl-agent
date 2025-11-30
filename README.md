@@ -155,6 +155,13 @@ $ docker/simulator/sim.sh train --vae /path/to/vae.torch --log-dir ./model_log
 $ docker/simulator/sim.sh demo --model /path/to/model --vae /path/to/vae.torch --steps 2000
 # Force x86_64 pull if you're on an arm host building for desktop:
 $ docker/simulator/sim.sh build --platform linux/amd64
+$ docker/simulator/sim.sh sim                # start DonkeySim headless (port 9091)
+$ docker/simulator/sim.sh sim --no-headless  # start DonkeySim with GUI (requires host display)
+$ docker/simulator/sim.sh run-all --vae ./vae.torch --log-dir ./model_log   # start sim and train
+$ docker/simulator/sim.sh run-all --mode demo --model ./model --vae ./vae.torch --steps 2000
+# Override robot driver if needed: add --robot sim|jetbot|jetracer to train/demo/run-all
+$ docker/simulator/sim.sh train --vae /path/to/vae.torch --log-dir ./model_log    # training only (no sim auto-start)
+$ docker/simulator/sim.sh train-only --vae /path/to/vae.torch --log-dir ./model_log  # alias of train
 ```
 
 

@@ -182,7 +182,7 @@ run_sim() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    build|train|demo|shell|sim|run-all)
+    build|train|train-only|demo|shell|sim|run-all)
       COMMAND="$1"
       shift
       ;;
@@ -308,6 +308,9 @@ case "$COMMAND" in
     docker build -t "$IMAGE" -f "$SCRIPT_DIR/Dockerfile" --build-arg BASE_IMAGE="$BASE_IMAGE" --platform "$PLATFORM" "$REPO_ROOT"
     ;;
   train)
+    run_train
+    ;;
+  train-only)
     run_train
     ;;
   demo)
