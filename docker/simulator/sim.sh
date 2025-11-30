@@ -19,8 +19,10 @@ DEFAULT_SIM_PORT="9091"
 DEFAULT_SIM_NAME="learning-racer-sim-env"
 DEFAULT_DISPLAY="${DISPLAY:-:0}"
 DEFAULT_XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-BASE_IMAGE="pytorch/pytorch:1.4-cuda10.1-cudnn7-runtime"  # Hardcoded GPU base
-PLATFORM="linux/amd64"  # Hardcoded for amd64 arch
+DEFAULT_BASE_IMAGE="pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime"  # CUDA 12.x supports NVIDIA L4
+DEFAULT_PLATFORM="linux/amd64"
+BASE_IMAGE="$DEFAULT_BASE_IMAGE"
+PLATFORM="$DEFAULT_PLATFORM"
 
 usage() {
   cat <<'EOF'
@@ -46,6 +48,8 @@ Options:
   --sim-version V  DonkeySim release tag (default: v21.07.24)
   --sim-image IMG  DonkeySim Docker image (default: learning-racer-donkey-sim:<version>)
   --sim-port PORT  Port DonkeySim listens on (default: 9091)
+  --base-image IMG Base image for trainer build (default: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime)
+  --platform P     Docker platform/arch (default: linux/amd64)
   --headless       Headless DonkeySim launch (default)
   --no-headless    Launch DonkeySim with a GUI (if available)
   --sim-name NAME  Container name for the sim (default: learning-racer-sim-env)
@@ -123,13 +127,16 @@ start_sim_container() {
   ensure_sim_image "$image_ref"
   # Remove any stale container with the same name
   docker rm -f "$SIM_NAME" >/dev/null 2>&1 || true
-  cid=$(docker run -d --rm \
-    --name "$SIM_NAME" \
-    --network host \
-    --platform "$PLATFORM" \
-    -e "DONKEYSIM_PORT=$SIM_PORT" \
-    -e "DONKEYSIM_HEADLESS=$SIM_HEADLESS" \
-    "$image_ref")
+  cid=$(
+    docker run -d --rm \
+      --name "$SIM_NAME" \
+      --network host \
+      --platform "$PLATFORM" \
+      "${SIM_GPU_FLAGS[@]}" \
+      -e "DONKEYSIM_PORT=$SIM_PORT" \
+      -e "DONKEYSIM_HEADLESS=$SIM_HEADLESS" \
+      "$image_ref"
+  )
   echo "$cid"
 }
 
@@ -163,7 +170,7 @@ run_sim() {
     docker run --rm -it
     --network host
     --platform "$PLATFORM"
-    --gpus all
+    "${SIM_GPU_FLAGS[@]}"
     -e "DONKEYSIM_PORT=$SIM_PORT"
     -e "DONKEYSIM_HEADLESS=$SIM_HEADLESS"
   )
@@ -236,6 +243,14 @@ while [[ $# -gt 0 ]]; do
       SIM_PORT="$2"
       shift 2
       ;;
+    --base-image)
+      BASE_IMAGE="$2"
+      shift 2
+      ;;
+    --platform)
+      PLATFORM="$2"
+      shift 2
+      ;;
     --sim-name)
       SIM_NAME="$2"
       shift 2
@@ -277,7 +292,9 @@ if [[ -z "$COMMAND" ]]; then
   exit 1
 fi
 
-DOCKER_RUN=(docker run --rm -it --network host --gpus all --platform "$PLATFORM")
+TRAIN_GPU_FLAGS=(--gpus all -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility)
+SIM_GPU_FLAGS=(--gpus all -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics)
+DOCKER_RUN=(docker run --rm -it --network host "${TRAIN_GPU_FLAGS[@]}" --platform "$PLATFORM")
 
 run_train() {
   require_file "$CONFIG_PATH" "config file"

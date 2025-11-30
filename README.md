@@ -166,6 +166,40 @@ $ docker/simulator/sim.sh train-only --vae /path/to/vae.torch --log-dir ./model_
 $ docker/simulator/sim.sh sim --no-headless --display "$DISPLAY" --xauth "$XAUTHORITY"
 ```
 
+#### 3.4 Running on Google Cloud with NVIDIA L4
+
+Use these steps on a GCE VM with an attached L4 GPU (e.g., `g2-standard-*`):
+
+1. Install drivers and container runtime:
+   ```shell
+   sudo apt-get update && sudo apt-get install -y nvidia-driver-535 nvidia-dkms-535
+   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+   curl -fsSL https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#' | \
+     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+   sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+   sudo nvidia-ctk runtime configure --runtime=docker
+   sudo systemctl restart docker
+   nvidia-smi   # should show the L4
+   ```
+2. Build the trainer image with the CUDA 12.1 base (L4-ready):
+   ```shell
+   ./docker/simulator/sim.sh build --base-image pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
+   ```
+3. Start DonkeySim on the VM (headless by default) and train against it:
+   ```shell
+   ./docker/simulator/sim.sh sim --sim-port 9091 --headless
+   # in another shell
+   ./docker/simulator/sim.sh train --vae ./vae.torch --log-dir ./model_log --device cuda
+   ```
+   Or run both together:
+   ```shell
+   ./docker/simulator/sim.sh run-all --vae ./vae.torch --log-dir ./model_log --device cuda
+   ```
+4. For GUI mode (optional), attach a display-capable session and use `--no-headless --display $DISPLAY --xauth $XAUTHORITY`.
+
+The sim and trainer containers already request the GPU via `--gpus all` and set `NVIDIA_VISIBLE_DEVICES=all`/`NVIDIA_DRIVER_CAPABILITIES`, which match L4 requirements.
 
 When complete install please check run command.
 

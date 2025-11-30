@@ -6,7 +6,9 @@ ARG DONKEYSIM_ZIP=DonkeySimLinux.zip
 
 ENV DEBIAN_FRONTEND=noninteractive \
     DONKEYSIM_PORT=9091 \
-    DONKEYSIM_HEADLESS=1
+    DONKEYSIM_HEADLESS=1 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

@@ -1,5 +1,5 @@
-# Base image can be swapped at build time (e.g., --build-arg BASE_IMAGE=python:3.8-slim for CPU-only).
-ARG BASE_IMAGE=pytorch/pytorch:1.4-cuda10.1-cudnn7-runtime
+# Default to a CUDA 12.x PyTorch runtime that supports NVIDIA L4 GPUs (override BASE_IMAGE if needed).
+ARG BASE_IMAGE=pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 FROM ${BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive \
