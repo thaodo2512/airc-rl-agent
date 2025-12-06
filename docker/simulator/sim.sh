@@ -20,6 +20,7 @@ DEFAULT_SIM_NAME="learning-racer-sim-env"
 DEFAULT_DISPLAY="${DISPLAY:-:0}"
 DEFAULT_XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 DEFAULT_PLATFORM="linux/amd64"
+DEFAULT_NOTEBOOK_PORT="8888"
 BASE_IMAGE=""  # No default; use Dockerfile's ARG if not set
 PLATFORM="$DEFAULT_PLATFORM"
 
@@ -34,6 +35,7 @@ Commands:
   shell     Start an interactive shell.
   sim       Build and launch DonkeySim inside Docker (headless by default).
   run-all   Start DonkeySim (Docker) and run train/demo against it.
+  notebook  Start Jupyter Notebook inside the trainer image (host port 8888).
 
 Options:
   --image TAG      Image name/tag (default: learning-racer-sim)
@@ -55,6 +57,7 @@ Options:
   --mode MODE      Mode for run-all: train|demo (default: train)
   --display DISP   Override DISPLAY for GUI launch (default: host DISPLAY)
   --xauth PATH     Override XAUTHORITY path for GUI launch (default: host XAUTHORITY or ~/.Xauthority)
+  --nb-port PORT   Host port for notebook command (default: 8888)
   -h, --help       Show this help.
 
 Examples:
@@ -66,6 +69,7 @@ Examples:
   sim.sh sim --sim-image my/sim:latest
   sim.sh run-all --vae ~/vae.torch --log-dir ./model_log
   sim.sh run-all --mode demo --model ~/model --vae ~/vae.torch --steps 2000
+  sim.sh notebook --nb-port 8888
 EOF
 }
 
@@ -85,6 +89,7 @@ SIM_NAME="$DEFAULT_SIM_NAME"
 SIM_MODE="train"
 SIM_DISPLAY="$DEFAULT_DISPLAY"
 SIM_XAUTH="$DEFAULT_XAUTHORITY"
+NB_PORT="$DEFAULT_NOTEBOOK_PORT"
 COMMAND=""
 
 require_file() {
@@ -194,7 +199,7 @@ run_sim() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    build|train|train-only|demo|shell|sim|run-all)
+    build|train|train-only|demo|shell|sim|run-all|notebook)
       COMMAND="$1"
       shift
       ;;
@@ -266,6 +271,10 @@ while [[ $# -gt 0 ]]; do
       SIM_XAUTH="$2"
       shift 2
       ;;
+    --nb-port)
+      NB_PORT="$2"
+      shift 2
+      ;;
     --headless)
       SIM_HEADLESS=1
       shift
@@ -317,6 +326,18 @@ run_demo() {
     "$IMAGE" demo -robot "$ROBOT" -model model -vae vae.torch -config config.yml -device "$DEVICE" -steps "$STEPS"
 }
 
+run_notebook() {
+  require_dir "$REPO_ROOT" "repository root"
+  docker run --rm -it \
+    --network host \
+    --platform "$PLATFORM" \
+    -p "$NB_PORT":8888 \
+    -v "$REPO_ROOT":/workspace/airc-rl-agent \
+    -w /workspace/airc-rl-agent \
+    --entrypoint bash \
+    "$IMAGE" -lc "jupyter notebook --ip 0.0.0.0 --no-browser --allow-root --port 8888"
+}
+
 run_all() {
   local image_ref="$SIM_IMAGE"
   if [[ -z "$image_ref" ]]; then
@@ -357,6 +378,9 @@ case "$COMMAND" in
     [[ -f "$VAE_PATH" ]] && RUN_CMD+=(-v "$VAE_PATH":/workspace/airc-rl-agent/vae.torch:ro)
     RUN_CMD+=(-v "$LOG_DIR":/workspace/airc-rl-agent/model_log)
     "${RUN_CMD[@]}" "$IMAGE"
+    ;;
+  notebook)
+    run_notebook
     ;;
   sim)
     run_sim

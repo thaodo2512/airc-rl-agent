@@ -34,6 +34,7 @@ RUN set -eux; \
     pip install --upgrade pip setuptools wheel; \
     pip install Cython; \
     pip install gym==0.17.3 stable_baselines3==1.1.0 cloudpickle pyglet pillow tensorboard imageio; \
+    pip install notebook==6.5.7 ipywidgets==7.8.1; \
     pip install "opencv-python<4.12.0"; \
     pip install "gym-donkeycar @ git+https://github.com/tawnkramer/gym-donkeycar.git@v21.07.24#egg=gym-donkeycar"; \
     pip install --no-deps .; \

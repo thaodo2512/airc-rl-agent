@@ -15,6 +15,7 @@ analysis/
 dataset/
 dataset_manual/
 dataset*.zip
+donkey_dataset*.zip
 
 # Notebook checkpoints
 **/.ipynb_checkpoints/
