@@ -7,3 +7,14 @@ model_log/
 
 # Environment / misc
 .DS_Store
+
+# Analysis artifacts
+analysis/
+
+# Data collection artifacts
+dataset/
+dataset_manual/
+dataset*.zip
+
+# Notebook checkpoints
+**/.ipynb_checkpoints/
