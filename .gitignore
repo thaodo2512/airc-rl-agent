@@ -9,7 +9,7 @@ model_log/
 .DS_Store
 
 # Analysis artifacts
-analysis/
+analysis/plots/
 
 # Data collection artifacts
 dataset/
