@@ -10,6 +10,7 @@ model_log/
 
 # Analysis artifacts
 analysis/plots/
+results/*
 
 # Data collection artifacts
 dataset/
