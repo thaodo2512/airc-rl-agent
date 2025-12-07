@@ -36,6 +36,7 @@ echo "** Starting notebook container ${CONTAINER_NAME} on port ${HOST_PORT}"
 # --- COMMAND UPDATE ---
 # Added: --privileged (for GPIO/I2C/Camera)
 # Added: --shm-size (for PyTorch/TF stability)
+# Added: Argus socket mount so CSI camera works in container
 exec docker run --rm -it \
   --name "${CONTAINER_NAME}" \
   --privileged \
@@ -43,6 +44,7 @@ exec docker run --rm -it \
   --network host \
   -p "${HOST_PORT}:8888" \
   -v "${REPO_ROOT}:/opt/ai-rc-car" \
+  -v /tmp/argus_socket:/tmp/argus_socket \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -w /opt/ai-rc-car \
   -e AI_RC_CAR_HOME=/opt/ai-rc-car \

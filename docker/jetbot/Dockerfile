@@ -27,6 +27,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpython3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-gi \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y python3-gst-1.0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 # Upgrade pip (now that pip3 is available)
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
 
@@ -58,6 +75,8 @@ RUN pip3 install --no-cache-dir \
     torchsummary \
     git+https://github.com/NVIDIA-AI-IOT/jetcam.git \
     git+https://github.com/NVIDIA-AI-IOT/jetracer.git
+
+RUN jupyter labextension install @jupyter-widgets/jupyterlab-manager
 
 WORKDIR ${AI_RC_CAR_HOME}
 

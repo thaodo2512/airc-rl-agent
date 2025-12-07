@@ -6,6 +6,9 @@ __pycache__/
 
 # Training outputs
 model_log/
+notebooks/utility/jetbot/dataset
+notebooks/utility/jetbot/jetbot_dataset_*
+
 
 # Environment / misc
 .DS_Store
