@@ -167,7 +167,11 @@ class ConfigReader:
     def pretty_dump(self):
         if not self.config:
             return "<no config loaded>"
-        return safe_dump(self.config, sort_keys=False, default_flow_style=False).rstrip()
+        try:
+            return safe_dump(self.config, sort_keys=False, default_flow_style=False).rstrip()
+        except TypeError:
+            # Older PyYAML versions (pre-5.1) don't support sort_keys.
+            return safe_dump(self.config, default_flow_style=False).rstrip()
 
 ConfigReader()
 

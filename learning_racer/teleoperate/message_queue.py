@@ -18,6 +18,9 @@ class NotebookBackend:
         self.rx_mq = posix_ipc.MessageQueue(JUPYTER_TO_AGENT, posix_ipc.O_CREAT)
         self.tx_mq = posix_ipc.MessageQueue(AGENT_TO_JUPYTER, posix_ipc.O_CREAT)
         self.callback = callback
+        # Enable verbose debug logging by setting NOTEBOOK_BACKEND_DEBUG=1
+        import os
+        self.debug = os.environ.get("NOTEBOOK_BACKEND_DEBUG") == "1"
 
     def __del__(self):
         self.isStop = True
@@ -32,6 +35,8 @@ class NotebookBackend:
 
     def send_status(self, flag):
         obj = {'status': flag}
+        if self.debug:
+            print(f"[NotebookBackend] send_status -> {obj}")
         self.tx_mq.send(json.dumps(obj))
 
     def _polling(self):
@@ -39,6 +44,8 @@ class NotebookBackend:
         while not self.isStop:
             data = self.rx_mq.receive()
             message = json.loads(data[0])
+            if self.debug:
+                print(f"[NotebookBackend] received -> {message}")
             if type(message['status']) == type(True):
                 self.status = message['status']
                 self.callback(self.status)

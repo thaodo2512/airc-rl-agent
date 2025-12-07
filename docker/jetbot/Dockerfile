@@ -83,4 +83,18 @@ WORKDIR ${AI_RC_CAR_HOME}
 # 4. Copy project files
 COPY . ${AI_RC_CAR_HOME}
 
+# Ensure Python training deps are present in the final image (usable inside training container).
+# Note: torch here is a generic aarch64 wheel; if you want NVIDIA's optimized wheel, replace accordingly.
+RUN pip3 install --no-cache-dir \
+    gym==0.19.0 \
+    stable-baselines3==1.3.0 \
+    cloudpickle==1.6.0
+
+# Install JetPack-specific CUDA-enabled torch wheel (do not use CPU-only PyPI build).
+RUN pip3 install --no-cache-dir \
+    --extra-index-url https://developer.download.nvidia.com/compute/redist/jp/v46 \
+    'torch==1.10.0+nv22.02'
+
+RUN pip3 install --no-cache-dir --no-deps -e ${AI_RC_CAR_HOME}
+
 EXPOSE 8888

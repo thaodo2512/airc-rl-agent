@@ -35,18 +35,33 @@ def _log_run_context(mode: str, args, config):
 @teardown_exception_wrapper(logger)
 def load_vae(model_path, variants_size, image_channels, device):
     vae = VAE(image_channels=image_channels, z_dim=variants_size)
+    requested_device = device
+    # Fallback to CPU if CUDA was requested but not available (e.g., running over VNC without GPU access).
+    if requested_device.startswith('cuda') and not torch.cuda.is_available():
+        logger.warning("CUDA requested but torch.cuda.is_available() is False. Falling back to CPU for VAE load.")
+        requested_device = 'cpu'
+
+    target_device = torch.device(requested_device)
     try:
-        vae.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
+        vae_state = torch.load(model_path, map_location=target_device)
+        vae.load_state_dict(vae_state)
     except FileNotFoundError:
         logger.error("Specify VAE model path can not find. Please specify correct vae path using -vae option.")
         raise OptionsValueError(
             "Specify VAE model path can not find. Please specify correct vae path using -vae option.")
     except RuntimeError as ex:
-        logger.error("Malformed VAE model file. Please check VARIANT_SIZE and IMAGE_CHANNELS in config.yml.")
-        logger.error("Not compatible vae model between under 1.6.0 and 1.7.0.")
-        raise ex
-    vae.to(torch.device(device)).eval()
+        # Common case: checkpoint saved on GPU but CUDA unavailable -> retry on CPU.
+        if 'torch.cuda.is_available() is False' in str(ex):
+            logger.warning("Retrying VAE load on CPU because CUDA tensors were found but CUDA is unavailable.")
+            vae_state = torch.load(model_path, map_location=torch.device('cpu'))
+            vae.load_state_dict(vae_state)
+            target_device = torch.device('cpu')
+        else:
+            logger.error("Malformed VAE model file. Please check VARIANTS_SIZE and IMAGE_CHANNELS in config.yml.")
+            logger.error("Not compatible vae model between under 1.6.0 and 1.7.0.")
+            raise ex
 
+    vae.to(target_device).eval()
     return vae
 
 
