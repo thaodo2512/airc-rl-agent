@@ -21,7 +21,7 @@ ENV_CONFIG:
     parts:
       teleoperator: 'learning_racer.teleoperate:Teleoperation'
   sim:
-    robot_name: 'donkey-generated-track-v0'
+    robot_name: 'donkey-warehouse-v0'
     conf:
       exe_path: 'remote'
       port: 9091
@@ -32,18 +32,18 @@ ENV_CONFIG:
 SAC_SETTING:
   LOG_INTERVAL: 1
   VERBOSE: 1
-  LEARNING_RATE: 3e-4
+  LEARNING_RATE: 5e-4
   ENT_COEF: 'auto_0.1'
   TRAIN_FREQ: 1
   BATCH_SIZE: 128
-  GRADIENT_STEPS: 4
-  LEARNING_STARTS: 5000
+  GRADIENT_STEPS: 32
+  LEARNING_STARTS: 2000
   BUFFER_SIZE: 100000
   VARIANTS_SIZE: 32
   IMAGE_CHANNELS: 3
   GAMMA: 0.99
   TAU: 0.02
-  USER_SDE_AT_WARMUP: false
+  USER_SDE_AT_WARMUP: true
   USER_SDE: false
   SDE_SAMPLE_FREQ: 64
 

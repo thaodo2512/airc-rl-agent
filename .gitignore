@@ -4,6 +4,7 @@ __pycache__/
 
 # Training outputs
 model_log/
+model_*
 
 # Environment / misc
 .DS_Store
