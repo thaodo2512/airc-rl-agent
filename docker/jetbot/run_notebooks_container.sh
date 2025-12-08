@@ -13,6 +13,7 @@ IMAGE_TAG="${JETBOT_IMAGE_TAG:-airc-jetbot-notebooks}"
 CONTAINER_NAME="${JETBOT_CONTAINER_NAME:-airc-jetbot-nb}"
 HOST_PORT="${JETBOT_NOTEBOOK_PORT:-8888}"
 PYTHONPATH_IN_CONTAINER="${PYTHONPATH_IN_CONTAINER:-/opt/ai-rc-car}"
+XAUTH_FILE="${XAUTHORITY:-$HOME/.Xauthority}"
 
 # Enable BuildKit for faster builds (optional, set to 0 if you have issues)
 export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
@@ -45,6 +46,14 @@ fi
 
 echo "** Starting notebook container ${CONTAINER_NAME} on port ${HOST_PORT}"
 
+# Mount X11 auth file when available so Argus/GStreamer can open the display (VNC/headless cases).
+MOUNT_FLAGS=()
+if [[ -f "${XAUTH_FILE}" ]]; then
+  MOUNT_FLAGS+=(-v "${XAUTH_FILE}:${XAUTH_FILE}:ro")
+else
+  echo "!! XAUTHORITY file not found at ${XAUTH_FILE}. Set XAUTHORITY env to your X11 auth file if camera access fails."
+fi
+
 # --- COMMAND UPDATE ---
 # Added: --privileged (for GPIO/I2C/Camera)
 # Added: --shm-size (for PyTorch/TF stability)
@@ -58,10 +67,12 @@ exec docker run --rm -it \
   -v "${REPO_ROOT}:/opt/ai-rc-car" \
   -v /tmp/argus_socket:/tmp/argus_socket \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
+  "${MOUNT_FLAGS[@]}" \
   -w /opt/ai-rc-car \
   -e AI_RC_CAR_HOME=/opt/ai-rc-car \
   -e PYTHONPATH="${PYTHONPATH_IN_CONTAINER}" \
   -e DISPLAY="${DISPLAY:-:0}" \
+  -e XAUTHORITY="${XAUTH_FILE}" \
   "${RUNTIME_FLAG[@]}" \
   "${IMAGE_TAG}" \
   jupyter notebook notebooks \

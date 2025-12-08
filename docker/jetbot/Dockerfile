@@ -90,11 +90,6 @@ RUN pip3 install --no-cache-dir \
     stable-baselines3==1.3.0 \
     cloudpickle==1.6.0
 
-# Install JetPack-specific CUDA-enabled torch wheel (do not use CPU-only PyPI build).
-RUN pip3 install --no-cache-dir \
-    --extra-index-url https://developer.download.nvidia.com/compute/redist/jp/v46 \
-    'torch==1.10.0+nv22.02'
-
 RUN pip3 install --no-cache-dir --no-deps -e ${AI_RC_CAR_HOME}
 
 EXPOSE 8888
