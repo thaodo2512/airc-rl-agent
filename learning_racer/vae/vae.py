@@ -9,70 +9,54 @@ class Flatten(nn.Module):
 
 class UnFlatten(nn.Module):
     def forward(self, input, size=256):
-        return input.view(input.size(0), size, 3, 8)
-
+        return input.view(input.size(0), size, 5, 10)
 
 class VAE(nn.Module):
-    def __init__(self, image_channels=3, h_dim=6144, z_dim=32):
+    def __init__(self, image_channels=3, z_dim=32):
         super(VAE, self).__init__()
-        self.z_dim = z_dim
         self.encoder = nn.Sequential(
-            nn.Conv2d(image_channels, 32, kernel_size=4, stride=2),
+            nn.Conv2d(image_channels, 32, 4, stride=2, padding=1),  # Input: image_channels x 80 x 160 -> 32 x 40 x 80
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.Conv2d(32, 64, 4, stride=2, padding=1),  # -> 64 x 20 x 40
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2),
+            nn.Conv2d(64, 128, 4, stride=2, padding=1),  # -> 128 x 10 x 20
             nn.ReLU(),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2),
+            nn.Conv2d(128, 256, 4, stride=2, padding=1),  # -> 256 x 5 x 10
             nn.ReLU(),
-            Flatten()
         )
-
-        self.fc1 = nn.Linear(h_dim, z_dim)
-        self.fc2 = nn.Linear(h_dim, z_dim)
-        self.fc3 = nn.Linear(z_dim, h_dim)
-
+        self.fc_mu = nn.Linear(256 * 5 * 10, z_dim)
+        self.fc_logvar = nn.Linear(256 * 5 * 10, z_dim)
+        self.decoder_input = nn.Linear(z_dim, 256 * 5 * 10)
         self.decoder = nn.Sequential(
-            UnFlatten(),
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(256, 128, 4, stride=2, padding=1),  # 256 x 5 x 10 -> 128 x 10 x 20
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1),  # -> 64 x 20 x 40
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=5, stride=2),
+            nn.ConvTranspose2d(64, 32, 4, stride=2, padding=1),  # -> 32 x 40 x 80
             nn.ReLU(),
+            nn.ConvTranspose2d(32, image_channels*2, 4, stride=2, padding=1),  # -> (image_channels*2) x 80 x 160 for mean + logvar
         )
-
-        self.out1 = nn.Sequential(nn.ConvTranspose2d(32, image_channels, kernel_size=4, stride=2),
-                                  nn.Sigmoid(),
-                                  )
-        self.out2 = nn.Sequential(nn.ConvTranspose2d(32, image_channels, kernel_size=4, stride=2),
-                                  nn.Sigmoid(),
-                                  )
-
-    def reparameterize(self, mu, logvar):
-        std = logvar.mul(0.5).exp_()
-        esp = torch.randn(*mu.size()).to(self.device)
-        z = mu + std * esp
-        return z
-
-    def bottleneck(self, h):
-        mu, logvar = self.fc1(h), self.fc2(h)  # F.softplus(self.fc2(h))
-        if self.training:
-            z = self.reparameterize(mu, logvar)
-            return z, mu, logvar
-        z = mu
-        return z, mu, logvar
 
     def encode(self, x):
-        h = self.encoder(x)
-        z, mu, logvar = self.bottleneck(h)
+        x = self.encoder(x)
+        x = x.view(x.size(0), -1)
+        mu = self.fc_mu(x)
+        logvar = self.fc_logvar(x)
+        z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
     def decode(self, z):
-        z = self.fc3(z)
-        x = self.decoder(z)
-        mu_y = self.out1(x)
-        sigma_y = self.out2(x)
+        x = self.decoder_input(z)
+        x = x.view(x.size(0), 256, 5, 10)
+        x = self.decoder(x)
+        mu_y = x[:, :3, :, :]
+        log_sigma_y = x[:, 3:, :, :]
+        sigma_y = torch.exp(log_sigma_y)
         return mu_y, sigma_y
 
     def forward(self, x):
