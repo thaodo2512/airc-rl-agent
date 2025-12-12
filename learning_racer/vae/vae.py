@@ -2,7 +2,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 import torchvision
-from torchvision.models import vgg16  # Removed VGG16_Weights import
+from torchvision import transforms
+from torchvision.models import vgg16, VGG16_Weights  # Added for weights if needed
 
 class Flatten(nn.Module):
     def forward(self, input):
@@ -13,13 +14,13 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 5, 10)
 
 class VAE(nn.Module):
-    def __init__(self, image_channels=3, z_dim=128):  # Updated z_dim to 128
+    def __init__(self, image_channels=3, z_dim=128):
         super(VAE, self).__init__()
         self.z_dim = z_dim
         self.encoder = nn.Sequential(
             nn.Conv2d(image_channels, 32, 4, stride=2, padding=1),  # Input: image_channels x 80 x 160 -> 32 x 40 x 80
             nn.ReLU(),
-            nn.Dropout(0.1),  # New: Dropout for regularization
+            nn.Dropout(0.1),  # Added for regularization (matches training)
             nn.Conv2d(32, 64, 4, stride=2, padding=1),  # -> 64 x 20 x 40
             nn.ReLU(),
             nn.Conv2d(64, 128, 4, stride=2, padding=1),  # -> 128 x 10 x 20
@@ -35,15 +36,19 @@ class VAE(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1),  # -> 64 x 20 x 40
             nn.ReLU(),
-            nn.Dropout(0.1),  # New: Dropout for regularization
+            nn.Dropout(0.1),  # Added for regularization (matches training)
             nn.ConvTranspose2d(64, 32, 4, stride=2, padding=1),  # -> 32 x 40 x 80
             nn.ReLU(),
             nn.ConvTranspose2d(32, image_channels, 4, stride=2, padding=1),  # -> image_channels x 80 x 160
+            nn.Tanh(),  # Changed to Tanh to match training (outputs [-1,1])
         )
-        # Perceptual loss VGG (use pretrained=True for compatibility)
-        self.vgg = vgg16(pretrained=True).features[:16].eval()
+        # Perceptual loss VGG
+        self.vgg = vgg16(weights=VGG16_Weights.DEFAULT).features[:16].eval()  # Updated with weights
         for param in self.vgg.parameters():
             param.requires_grad = False
+        # ImageNet normalization for VGG
+        self.vgg_normalization = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                      std=[0.229, 0.224, 0.225])
 
     def encode(self, x):
         x = self.encoder(x)
@@ -62,7 +67,7 @@ class VAE(nn.Module):
         x = self.decoder_input(z)
         x = x.view(x.size(0), 256, 5, 10)
         x = self.decoder(x)
-        return torch.sigmoid(x)
+        return x  # No sigmoid; Tanh is already in sequential
 
     def forward(self, x):
         z, mu, logvar = self.encode(x)
@@ -70,12 +75,19 @@ class VAE(nn.Module):
         return recon, mu, logvar
 
     def perceptual_loss(self, recon_x, x):
-        feat_recon = self.vgg(recon_x)
-        feat_x = self.vgg(x)
+        # Denormalize from [-1,1] to [0,1]
+        x = (x + 1) / 2
+        recon_x = (recon_x + 1) / 2
+        # Apply ImageNet normalization
+        x_norm = self.vgg_normalization(x)
+        recon_x_norm = self.vgg_normalization(recon_x)
+        feat_recon = self.vgg(recon_x_norm)
+        feat_x = self.vgg(x_norm)
         return F.mse_loss(feat_recon, feat_x, reduction='mean')
 
-    def loss_fn(self, image, recon, mean, logvar, beta=4.0, perc_weight=0.1):  # Updated with beta and perc_weight
-        BCE = F.binary_cross_entropy(recon, image, reduction='sum')
+    def loss_fn(self, image, recon, mean, logvar, beta=1.0, perc_weight=0.1):
+        # Changed to MSE for reconstruction (matches updated training)
+        REC = F.mse_loss(recon, image, reduction='sum')
         KL = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        PERC = self.perceptual_loss(recon, image) * recon.numel()  # Scale to match BCE magnitude
-        return BCE + beta * KL + perc_weight * PERC
+        PERC = self.perceptual_loss(recon, image) * 10000  # Updated scaling (no numel(); use fixed factor)
+        return REC + beta * KL + perc_weight * PERC
