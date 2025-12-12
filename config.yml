@@ -1,4 +1,3 @@
-
 ENV_CONFIG:
   jetbot:
     robot_name: 'jetbot-v0'
@@ -28,18 +27,17 @@ ENV_CONFIG:
       host: 'localhost'
     wrapped_env: 'learning_racer.agent.simulator:SimulatorEnv'
 
-
 SAC_SETTING:
   LOG_INTERVAL: 1
   VERBOSE: 2
-  LEARNING_RATE: 1e-4
+  LEARNING_RATE: 3e-4
   ENT_COEF: 'auto_0.1'
   TRAIN_FREQ: 1
-  BATCH_SIZE: 64
-  GRADIENT_STEPS: 800
+  BATCH_SIZE: 128
+  GRADIENT_STEPS: 400
   LEARNING_STARTS: 1000
-  BUFFER_SIZE: 50000
-  VARIANTS_SIZE: 32
+  BUFFER_SIZE: 30000
+  VARIANTS_SIZE: 128  # Updated to match the improved VAE's z_dim=128
   IMAGE_CHANNELS: 3
   GAMMA: 0.99
   TAU: 0.02
@@ -47,38 +45,17 @@ SAC_SETTING:
   USER_SDE: false
   SDE_SAMPLE_FREQ: 64
 
-
-
-  #HyperParameter for Reward
 REWARD_SETTING:
   REWARD_CRASH: -10
   CRASH_REWARD_WEIGHT: 5
   THROTTLE_REWARD_WEIGHT: 0.3
 
-#AGENT_SETTING:
-#  # Agent settings
-#  N_COMMAND_HISTORY: 10
-#  MIN_STEERING: -1.0
-#  MAX_STEERING: 1.0
-#  MIN_THROTTLE: 0.3
-#  MAX_THROTTLE: 0.5
-#  MAX_STEERING_DIFF: 0.15
-
-#s#JetBot Reference
-#AGENT_SETTING:
-#  N_COMMAND_HISTORY: 10
-#  MIN_STEERING: -0.5
-#  MAX_STEERING: 0.5
-#  MIN_THROTTLE: 0.3
-#  MAX_THROTTLE: 0.5
-#  MAX_STEERING_DIFF: 0.05
-
 AGENT_SETTING:
   N_COMMAND_HISTORY: 20
   MIN_STEERING: -0.2
   MAX_STEERING: 0.2
-  MIN_THROTTLE: 0.05  # Lower from 0.7
-  MAX_THROTTLE: 0.1  # Lower from 0.95
+  MIN_THROTTLE: 0.2  # Lower from 0.7
+  MAX_THROTTLE: 0.3  # Lower from 0.95
   MAX_STEERING_DIFF: 0.05
 
 JETRACER_SETTING:
@@ -88,5 +65,5 @@ JETRACER_SETTING:
   THROTTLE_GAIN: -0.8
 
 VAE_AUTO_STOP:
-  VAE_AUTO_STOP: false
-  VAE_AUTO_STOP_THRESHOLD: 1000
+  VAE_AUTO_STOP: true  # Enabled to use VAE for auto-stop functionality with the generated model
+  VAE_AUTO_STOP_THRESHOLD: 500  # May need tuning based on MSE loss scale; test with your dataset
