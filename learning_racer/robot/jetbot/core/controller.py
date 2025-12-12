@@ -10,6 +10,8 @@ class RobotController():
 
     def __init__(self):
         self.robot = Robot()
+        self.robot.left_motor.alpha = -1.0  # Invert polarity
+        self.robot.right_motor.alpha = -1.0  # Invert polarity
 
 
     def action(self, steering, throttle):

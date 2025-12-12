@@ -92,4 +92,8 @@ RUN pip3 install --no-cache-dir \
 
 RUN pip3 install --no-cache-dir --no-deps -e ${AI_RC_CAR_HOME}
 
+# Pre-download VGG16 weights to avoid runtime fetch
+RUN mkdir -p /root/.cache/torch/hub/checkpoints/ && \
+    wget -q https://download.pytorch.org/models/vgg16-397923af.pth -O /root/.cache/torch/hub/checkpoints/vgg16-397923af.pth
+
 EXPOSE 8888

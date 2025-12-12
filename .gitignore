@@ -23,6 +23,7 @@ dist/
 .eggs/
 *.egg-info/
 pip-wheel-metadata/
+vae-*
 
 # Jupyter
 .ipynb_checkpoints/
