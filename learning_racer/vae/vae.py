@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 import torchvision
 from torchvision import transforms
-from torchvision.models import vgg16, VGG16_Weights  # Added for modern weights
+from torchvision.models import vgg16  # Removed VGG16_Weights for compatibility
 
 class Flatten(nn.Module):
     def forward(self, input):
@@ -42,8 +42,8 @@ class VAE(nn.Module):
             nn.ConvTranspose2d(32, image_channels, 4, stride=2, padding=1),  # -> image_channels x 80 x 160
             nn.Tanh(),  # Changed from Sigmoid to match training (outputs [-1,1])
         )
-        # Perceptual loss VGG (updated with weights for modern PyTorch)
-        self.vgg = vgg16(weights=VGG16_Weights.DEFAULT).features[:16].eval()
+        # Perceptual loss VGG (updated with pretrained=True for older torchvision compatibility)
+        self.vgg = vgg16(pretrained=True).features[:16].eval()
         for param in self.vgg.parameters():
             param.requires_grad = False
         # ImageNet normalization for VGG

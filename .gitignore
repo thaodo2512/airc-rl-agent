@@ -24,6 +24,7 @@ dist/
 *.egg-info/
 pip-wheel-metadata/
 vae-*
+vae_*
 
 # Jupyter
 .ipynb_checkpoints/
@@ -31,3 +32,6 @@ vae-*
 # Editors
 .vscode/
 .idea/
+
+
+notebooks/utility/jetbot/calib_images/
