@@ -39,6 +39,11 @@ class AutoStopEnv(BaseWrappedEnv):
     def __init__(self, env: Env, vae: VAE, config: ConfigReader, teleoperator: Teleoperator):
         super(AutoStopEnv, self).__init__(env, vae, config)
         self.teleoperator = teleoperator
+        reward_setting = getattr(config, "reward", {}) or {}
+        self.steering_penalty_weight = reward_setting.get('STEERING_PENALTY_WEIGHT', 0.05)
+        self.lack_progress_penalty = reward_setting.get('LACK_PROGRESS_PENALTY', 0.02)
+        self.progress_threshold = reward_setting.get('PROGRESS_THRESHOLD', 0.1)
+        self.previous_latent = None
         self.teleoperator.start_process()
     # StableBaselines3 Callbacks
     def on_rollout_start(self):
@@ -57,6 +62,10 @@ class AutoStopEnv(BaseWrappedEnv):
 
     def on_pre_step_callback(self, action):
         return action
+
+    def reset(self):
+        self.previous_latent = None  # Reset previous latent vector at the start of each episode
+        return super().reset()
 
     def _is_auto_stop(self, reconst, sigma, observe_img):
         """
@@ -81,7 +90,8 @@ class AutoStopEnv(BaseWrappedEnv):
 
     def on_post_step_callback(self, action, t_img, reward, done, info, z, train):
 
-        z = torch.unsqueeze(torch.Tensor(z), dim=0)
+        latent = np.asarray(z)
+        z = torch.unsqueeze(torch.Tensor(latent), dim=0)
         reconst, sigma = self._decode_image(z.to(self.device))
         if self._is_auto_stop(reconst, sigma, t_img.to(self.device)):
             done = True
@@ -96,6 +106,15 @@ class AutoStopEnv(BaseWrappedEnv):
                                          self.config.agent_max_throttle(),
                                          self.config.reward_reward_crash(), self.config.reward_crash_reward_weight(),
                                          self.config.reward_throttle_reward_weight())
+        steering = action[0]
+        reward -= abs(steering) * self.steering_penalty_weight
+
+        if self.previous_latent is not None:
+            distance = np.linalg.norm(latent - self.previous_latent)
+            if distance < self.progress_threshold:
+                reward -= self.lack_progress_penalty
+        self.previous_latent = latent.copy()
+        print(f"Step reward: {reward}")
 
         return action, t_img, reward, done, info, z
 

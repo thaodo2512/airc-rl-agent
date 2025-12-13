@@ -37,7 +37,7 @@ SAC_SETTING:
   GRADIENT_STEPS: 400
   LEARNING_STARTS: 1000
   BUFFER_SIZE: 30000
-  VARIANTS_SIZE: 128  # Updated to match the improved VAE's z_dim=128
+  VARIANTS_SIZE: 32  # Updated to match the improved VAE's z_dim=128
   IMAGE_CHANNELS: 3
   GAMMA: 0.99
   TAU: 0.02
@@ -49,6 +49,9 @@ REWARD_SETTING:
   REWARD_CRASH: -10
   CRASH_REWARD_WEIGHT: 5
   THROTTLE_REWARD_WEIGHT: 0.3
+  STEERING_PENALTY_WEIGHT: 0.05  # Penalty coefficient for high steering values, e.g., -0.05 * |steering|
+  LACK_PROGRESS_PENALTY: 0.02    # Fixed penalty if latent vector change is below threshold (indicating lack of progress)
+  PROGRESS_THRESHOLD: 0.1        # Threshold for Euclidean distance between consecutive latent vectors to detect progress
 
 AGENT_SETTING:
   N_COMMAND_HISTORY: 20
@@ -66,4 +69,4 @@ JETRACER_SETTING:
 
 VAE_AUTO_STOP:
   VAE_AUTO_STOP: true  # Enabled to use VAE for auto-stop functionality with the generated model
-  VAE_AUTO_STOP_THRESHOLD: 500  # May need tuning based on MSE loss scale; test with your dataset
+  VAE_AUTO_STOP_THRESHOLD: 700  # May need tuning based on MSE loss scale; test with your dataset
