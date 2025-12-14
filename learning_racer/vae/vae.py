@@ -37,7 +37,8 @@ class VAE(nn.Module):
         x = x.view(x.size(0), -1)
         mu = self.fc_mu(x)
         logvar = self.fc_logvar(x)
-        return mu, logvar
+        z = self.reparameterize(mu, logvar)  # Sample z here
+        return z, mu, logvar  # Now returns 3 values
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -51,8 +52,7 @@ class VAE(nn.Module):
         return x
 
     def forward(self, x):
-        mu, logvar = self.encode(x)
-        z = self.reparameterize(mu, logvar)
+        z, mu, logvar = self.encode(x)  # Updated to unpack 3 values
         recon = self.decode(z)
         return recon, mu, logvar
 

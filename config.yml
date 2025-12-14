@@ -57,7 +57,7 @@ AGENT_SETTING:
   N_COMMAND_HISTORY: 20
   MIN_STEERING: -0.2
   MAX_STEERING: 0.2
-  MIN_THROTTLE: 0.2  # Lower from 0.7
+  MIN_THROTTLE: 0.1  # Lower from 0.7
   MAX_THROTTLE: 0.3  # Lower from 0.95
   MAX_STEERING_DIFF: 0.05
 
@@ -69,4 +69,4 @@ JETRACER_SETTING:
 
 VAE_AUTO_STOP:
   VAE_AUTO_STOP: true  # Enabled to use VAE for auto-stop functionality with the generated model
-  VAE_AUTO_STOP_THRESHOLD: 700  # May need tuning based on MSE loss scale; test with your dataset
+  VAE_AUTO_STOP_THRESHOLD: 2000  # May need tuning based on MSE loss scale; test with your dataset

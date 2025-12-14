@@ -40,7 +40,10 @@ class SimulatorAutoStopEnv(SimulatorEnv):
         """
         Decode a latent vector into an image.
         :param z: Tensor of shape (1, z_dim) on device
-        :return (mu_image,sigma_y): Turple tensor of shape (3, 160, 120) on device
+        :return (mu_image,sigma_y): Tuple tensor of shape (3, 160, 120) on device
+                sigma_y is the Bernoulli variance p*(1-p) for each pixel
         """
-        mu_image, sigma_y = self.vae.decode(z)
+        mu_image = self.vae.decode(z)
+        variance = mu_image * (1 - mu_image)  # Bernoulli variance: p*(1-p)
+        sigma_y = variance  # Downstream uses sigma as variance (not std) in reconstruction check
         return mu_image.detach(), sigma_y.detach()
