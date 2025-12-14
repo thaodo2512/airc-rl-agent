@@ -29,15 +29,15 @@ ENV_CONFIG:
 
 SAC_SETTING:
   LOG_INTERVAL: 1
-  VERBOSE: 2
+  VERBOSE: 1
   LEARNING_RATE: 3e-4
   ENT_COEF: 'auto_0.1'
   TRAIN_FREQ: 1
   BATCH_SIZE: 128
-  GRADIENT_STEPS: 400
-  LEARNING_STARTS: 1000
-  BUFFER_SIZE: 30000
-  VARIANTS_SIZE: 32  # Updated to match the improved VAE's z_dim=128
+  GRADIENT_STEPS: 128
+  LEARNING_STARTS: 500
+  BUFFER_SIZE: 100000
+  VARIANTS_SIZE: 32 
   IMAGE_CHANNELS: 3
   GAMMA: 0.99
   TAU: 0.02
@@ -47,19 +47,19 @@ SAC_SETTING:
 
 REWARD_SETTING:
   REWARD_CRASH: -10
-  CRASH_REWARD_WEIGHT: 5
-  THROTTLE_REWARD_WEIGHT: 0.3
-  STEERING_PENALTY_WEIGHT: 0.05  # Penalty coefficient for high steering values, e.g., -0.05 * |steering|
-  LACK_PROGRESS_PENALTY: 0.02    # Fixed penalty if latent vector change is below threshold (indicating lack of progress)
-  PROGRESS_THRESHOLD: 0.1        # Threshold for Euclidean distance between consecutive latent vectors to detect progress
+  CRASH_REWARD_WEIGHT: 1
+  THROTTLE_REWARD_WEIGHT: 0.2
+  STEERING_PENALTY_WEIGHT: 0.3  # Penalty coefficient for high steering values, e.g., -0.05 * |steering|
+  LACK_PROGRESS_PENALTY: 0.05    # Fixed penalty if latent vector change is below threshold (indicating lack of progress)
+  PROGRESS_THRESHOLD: 0.05        # Threshold for Euclidean distance between consecutive latent vectors to detect progress
 
 AGENT_SETTING:
   N_COMMAND_HISTORY: 20
   MIN_STEERING: -0.2
   MAX_STEERING: 0.2
-  MIN_THROTTLE: 0.1  # Lower from 0.7
-  MAX_THROTTLE: 0.3  # Lower from 0.95
-  MAX_STEERING_DIFF: 0.05
+  MIN_THROTTLE: 0.2  # Lower from 0.7
+  MAX_THROTTLE: 0.35  # Lower from 0.95
+  MAX_STEERING_DIFF: 0.1
 
 JETRACER_SETTING:
   STEERING_CHANNEL: 0
@@ -69,4 +69,4 @@ JETRACER_SETTING:
 
 VAE_AUTO_STOP:
   VAE_AUTO_STOP: true  # Enabled to use VAE for auto-stop functionality with the generated model
-  VAE_AUTO_STOP_THRESHOLD: 2000  # May need tuning based on MSE loss scale; test with your dataset
+  VAE_AUTO_STOP_THRESHOLD: 1400  # May need tuning based on MSE loss scale; test with your dataset

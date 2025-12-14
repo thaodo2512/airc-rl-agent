@@ -123,20 +123,21 @@ class AutoStopEnv(BaseWrappedEnv):
 
     def on_pre_reset(self):
         time.sleep(0.5)
-        reverse_action = self.action_history.copy()
-        reverse_action = np.reshape(reverse_action, (-1, 2))[::-1]
-        reverse_action *= -1.0
-        reverse_history = np.append(reverse_action, np.array([[0., 0.]]), axis=0)
-        print("Playback")
-        print(self.action_history)
-        for action in reverse_history:
-            observe, reward, done, e_i = self.env.step(action)
-            z, t_img = self.encode_observe(observe)
-            reconst, sigma = self._decode_image(z)
-            if not self._is_auto_stop(reconst, sigma, t_img.to(self.device)):
-                pass
-            time.sleep(0.01)
-        time.sleep(0.5)
+        # reverse_action = self.action_history.copy()
+        # reverse_action = np.reshape(reverse_action, (-1, 2))[::-1]
+        # reverse_action *= -1.0
+        # reverse_history = np.append(reverse_action, np.array([[0., 0.]]), axis=0)
+        # print("Playback")
+        # print(self.action_history)
+        # for action in reverse_history:
+            # observe, reward, done, e_i = self.env.step(action)
+            # z, t_img = self.encode_observe(observe)
+            # reconst, sigma = self._decode_image(z)
+            # if not self._is_auto_stop(reconst, sigma, t_img.to(self.device)):
+                # pass
+            # time.sleep(0.01)
+        self.env.step(np.array([0., 0.]))  # Stop steering và throttle
+        time.sleep(3)
         return
 
     def on_post_reset(self, observe):
